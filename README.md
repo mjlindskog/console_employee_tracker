@@ -30,7 +30,7 @@ _If no package.json file is present, type the command:_ `npm init -y` _then:_ `n
 
 `npm start` or `node index.js`
 
-![Screenshot of command line after Employee Manager has launched ](./img/employee_manager.png)
+![Screenshot of command line after Employee Manager has launched ](./img/emp-man.png)
 
 **Below is video demonstrating the My Team page generation process:**
 
