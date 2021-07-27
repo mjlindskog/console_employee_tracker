@@ -114,6 +114,7 @@ const questionPrompt = () => {
 };
 
 const viewEmps = () => {
+    // structured sqlQuery in MySQL Workbench to avoid syntax errors
     let sqlQuery = "SELECT employee.id AS 'ID', employee.first_name AS 'First Name', employee.last_name AS 'Last Name', roles.title AS 'Title', department.dept_name AS 'Department', roles.salary AS 'Salary' FROM employee LEFT JOIN roles ON employee.role_id = roles.id LEFT JOIN department ON roles.department_id = department.id"
 
     connection.query(sqlQuery, (err, res) => {
@@ -127,6 +128,7 @@ const viewEmps = () => {
 const viewEmpsDept = () => {
     let deptQuery = "SELECT * FROM department";
 
+    // structured sqlQuery in MySQL Workbench to avoid syntax errors replace department names with ? in WHERE statement
     let sqlQuery = "SELECT employee.id AS 'ID', employee.first_name AS 'First Name', employee.last_name AS 'Last Name', roles.title AS 'Title', department.dept_name AS 'Department', roles.salary as 'Salary' FROM employee LEFT JOIN roles ON employee.role_id = roles.id LEFT JOIN department ON roles.department_id = department.id WHERE ?;";
 
     connection.query(deptQuery, (err, options) => {
@@ -163,6 +165,7 @@ const viewEmpsMan = () => {
 };
 
 const addEmps = () => {
+    // first have user type name inputs then proceed to tackle role and manger individually
     inquirer.prompt([
         {
             name: 'firstName',
@@ -175,8 +178,9 @@ const addEmps = () => {
             message: "What is their last name?",
         }
     ]).then((answer) => {
+        // must separate the role selection question and manger question out, only way managed to avoid SQL syntax errors
         const nameAnswers = [answer.firstName, answer.lastName]
-        let roleQuery = `SELECT roles.id, roles.title FROM roles`;
+        let roleQuery = "SELECT roles.id, roles.title FROM roles";
         connection.query(roleQuery, (err, option) => {
             if (err) return console.log(err); 
             const allRoles = option.map(({ id, title }) => ({ name: title, value: id }));
@@ -190,9 +194,11 @@ const addEmps = () => {
             ]).then((roleChoice) => {
                 let role = roleChoice.role;
                 nameAnswers.push(role);
-                let managerQuery =  `SELECT * FROM employee`;
+                let managerQuery =  "SELECT * FROM employee WHERE role_id = 3 OR role_id = 5 OR role_id = 7;";
                 connection.query(managerQuery, (err, option) => {
                     if (err) return console.log(err);
+                    // concats names into one name
+                    // created employees will be avaialble to selected later
                     const allManagers = option.map(({ id, first_name, last_name }) => ({ name: first_name + " "+ last_name, value: id }));
                     inquirer.prompt([
                         {
@@ -204,7 +210,7 @@ const addEmps = () => {
                     ]).then((managerChoice) => {
                         let manager = managerChoice.manager;
                         nameAnswers.push(manager);
-                        let query =   `INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                        let query = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
                         VALUES (?, ?, ?, ?)`;
                         connection.query(query, nameAnswers, (err) => {
                             if (err) return console.log(err);
@@ -239,7 +245,57 @@ const rmvRoles = () => {
 };
 
 const updateEmpRole = () => {
-    
+    let sqlQuery = "SELECT employee.id, employee.first_name, employee.last_name, roles.id AS 'role_id' FROM employee, roles, department WHERE department.id = roles.department_id AND roles.id = employee.role_id";
+    connection.query(sqlQuery, (err, res) => {
+        if (err) return console.log(err);
+        let empName = [];
+        res.forEach((employee) => {empName.push(`${employee.first_name} ${employee.last_name}`);});
+
+        let sqlQuery2 = "SELECT roles.id, roles.title FROM roles";
+        connection.query(sqlQuery2, (err, res) => {
+            if (err) return console.log(err);
+            let availableRoles = [];
+            res.forEach((roles) => {availableRoles.push(roles.title);});
+
+            inquirer
+            .prompt([
+                {
+                    name: 'updtEmp',
+                    type: 'list',
+                    message: 'Please select an employee to change their role?',
+                    choices: empName
+                },
+                {
+                    name: 'updtRole',
+                    type: 'list',
+                    message: 'Please select their new role?',
+                    choices: availableRoles
+                }
+            ]).then((answer) => {
+                let newTitleId;
+                let employeeId;
+
+                res.forEach((roles) => {
+                    if (answer.updtRole === roles.title) {
+                        newTitleId = roles.id;
+                    }
+                });
+
+                res.forEach((employee) => {
+                    if ( answer.updtEmp === `${employee.first_name} ${employee.last_name}`) {
+                        employeeId = employee.id;
+                    }
+                });
+
+                let sqlQuery3 = "UPDATE employee SET employee.role_id = ? WHERE employee.id = ?";
+                connection.query(sqlQuery3, [newTitleId, employeeId], (err) => {
+                    if (err) return console.log(err);
+                    console.log("-------------------------------------------", "\nView all Employees to see updated employee.", "\n-------------------------------------------")
+                    questionPrompt();
+                });
+            });
+        });
+    });
 };
 
 const updateEmpMan = () => {
