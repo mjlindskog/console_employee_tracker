@@ -163,45 +163,58 @@ const viewEmpsMan = () => {
 };
 
 const addEmps = () => {
-    let fullName = 'SELECT * FROM roles; SELECT CONCAT (employee.first_name," ",employee.last_name) AS full_name FROM employee'
-    connection.query(addEQuery, (err, options) => {
-        if (err) return console.log(err);
-        inquirer.prompt([
-            {
-                name: 'firstName',
-                type: 'input',
-                messasge: "Enter the employee's first name",
-            },
-            {
-                name: 'lastName',
-                type: 'input',
-                messasge: "Enter the employee's last name",
-            },
-            {
-                name: 'allRoles',
-                type: 'list',
-                messasge: 'Select from the following Roles:',
-                choices: function () {
-                    let roleOptions = options[0].map(choice => choice.title)
-                    return roleOptions;
+    inquirer.prompt([
+        {
+            name: 'firstName',
+            type: 'input',
+            message: "What is their first name?",
+        },
+        {
+            name: 'lastName',
+            type: 'input',
+            message: "What is their last name?",
+        }
+    ]).then((answer) => {
+        const nameAnswers = [answer.firstName, answer.lastName]
+        let roleQuery = `SELECT roles.id, roles.title FROM roles`;
+        connection.query(roleQuery, (err, option) => {
+            if (err) return console.log(err); 
+            const allRoles = option.map(({ id, title }) => ({ name: title, value: id }));
+            inquirer.prompt([
+                {
+                    name: 'role',
+                    type: 'list',
+                    message: "What is the employee's role?",
+                    choices: allRoles
                 }
-            },
-            {
-                name: 'allManagers',
-                type: 'list',
-                messasge: 'If applicable, select from the following Mangers:',
-                choices: [function () {
-                    let managerOptions = options[1].map(choice => choice.full_name)
-                    return managerOptions;
-                }, null]
-            }
-        ]).then((answer) => {
-            connection.query(
-                `INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES(?, ?, 
-                    (SELECT id FROM roles WHERE title = ? ), 
-                    (SELECT id FROM (SELECT id FROM employees WHERE CONCAT(first_name," ",last_name) = ? ) AS tmptable))`, [answer.firstName, answer.lastName, answer.allRoles, answer.allManagers]
-            )
-        })
+            ]).then((roleChoice) => {
+                let role = roleChoice.role;
+                nameAnswers.push(role);
+                let managerQuery =  `SELECT * FROM employee`;
+                connection.query(managerQuery, (err, option) => {
+                    if (err) return console.log(err);
+                    const allManagers = option.map(({ id, first_name, last_name }) => ({ name: first_name + " "+ last_name, value: id }));
+                    inquirer.prompt([
+                        {
+                            type: 'list',
+                            name: 'manager',
+                            message: "Who is the employee's manager?",
+                            choices: allManagers
+                        }
+                    ]).then((managerChoice) => {
+                        let manager = managerChoice.manager;
+                        nameAnswers.push(manager);
+                        let query =   `INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                        VALUES (?, ?, ?, ?)`;
+                        connection.query(query, nameAnswers, (err) => {
+                            if (err) return console.log(err);
+                            console.log("---------------------------------------", "\nView all Employees to see new addition.", "\n---------------------------------------")
+                            questionPrompt();
+                        });
+                    });
+                });
+            });
+         });
     });
 };
 
@@ -226,7 +239,7 @@ const rmvRoles = () => {
 };
 
 const updateEmpRole = () => {
-
+    
 };
 
 const updateEmpMan = () => {
