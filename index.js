@@ -43,10 +43,11 @@ const questionPrompt = () => {
         choices: [
             'View All Employees',
             'View All Employees by Department',
-            'View All Employees by Manager',
+            'View All Departments',
+            'View All Roles',
             'Add Employee',
             'Add Department',
-            'Add Roles',
+            'Add Role',
             'Remove Employee',
             'Remove Department',
             'Remove Roles',
@@ -66,8 +67,12 @@ const questionPrompt = () => {
                 viewEmpsDept();
                 break;
 
-            case 'View All Employees by Manager':
-                viewEmpsMan();
+            case 'View All Departments':
+                viewDepts();
+                break;
+            
+            case 'View All Roles':
+                viewRoles();
                 break;
             
             case 'Add Employee':
@@ -78,7 +83,7 @@ const questionPrompt = () => {
                 addDept();
                 break;
 
-            case 'Add Roles':
+            case 'Add Role':
                 addRole();
                 break;
 
@@ -160,7 +165,11 @@ const viewEmpsDept = () => {
     });
 };
 
-const viewEmpsMan = () => {
+const viewDepts = () => {
+    
+};
+
+const viewRoles = () => {
     
 };
 
@@ -199,7 +208,7 @@ const addEmps = () => {
                     if (err) return console.log(err);
                     // concats names into one name
                     // created employees will be avaialble to selected later
-                    const allManagers = option.map(({ id, first_name, last_name }) => ({ name: first_name + " "+ last_name, value: id }));
+                    let allManagers = option.map(({ id, first_name, last_name }) => ({ name: first_name + " "+ last_name, value: id }));
                     inquirer.prompt([
                         {
                             type: 'list',
@@ -225,11 +234,71 @@ const addEmps = () => {
 };
 
 const addDept = () => {
-
+    let sqlQuery = "SELECT dept_name AS 'Departments' FROM department";
+    connection.query(sqlQuery, (err, options) => {
+        if (err) return console.log(err);
+        
+        inquirer.prompt([
+            {
+                name: 'addDept',
+                type: 'input',
+                message: 'Enter name of new Department'
+            }
+        ]).then((answer) => {
+            let addDeptQuery = "INSERT INTO department(dept_name) VALUES( ? )"
+            connection.query(addDeptQuery, answer.addDept)
+            console.log("-----------------------------------------", 
+            "\nView all Departments to see new addition.", "\n-----------------------------------------")
+            questionPrompt();
+        })
+    })
 };
 
 const addRole = () => {
+    let sqlQuery = 'SELECT * FROM department'
+    connection.query(sqlQuery, (err, res) => {
+        if (err) return console.log(err);
+        let existingDepts = [];
+        res.forEach((department) => {existingDepts.push(department.dept_name);});
+        inquirer
+        .prompt([
+            {
+                name: 'departmentName',
+                type: 'list',
+                message: 'Select a department for the new role',
+                choices: existingDepts
+            },
+            {
+              name: 'roleName',
+              type: 'input',
+              message: 'What is the name of the new role?',
+            },
+            {
+              name: 'salaryInput',
+              type: 'input',
+              message: 'What is the salary of the new role?',
+            }
+        ]).then((answer) => {
+            let deptId;
 
+            res.forEach((department) => {
+              if (answer.departmentName === department.dept_name) {deptId = department.id;}
+            });
+
+            let sqlQuery2 = `INSERT INTO roles(title, salary, department_id) 
+            VALUES
+            ("${answer.roleName}", "${answer.salaryInput}", 
+            (SELECT id FROM department WHERE dept_name = "${answer.departmentName}"));`
+            let addedRole = [answer.roleName, answer.salaryInput, deptId];
+
+            connection.query(sqlQuery2, (err) => {
+                if (err) return console.log(err);
+                console.log("-----------------------------------", 
+                "\nView all Roles to see new addition.", "\n-----------------------------------")
+                questionPrompt();
+            });
+        });
+    });
 };
 
 const rmvEmps = () => {
